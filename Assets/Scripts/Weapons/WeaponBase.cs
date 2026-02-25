@@ -129,11 +129,28 @@ public abstract class WeaponBase : MonoBehaviour
         Ray ray = new Ray(_cam.transform.position, _cam.transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, range, hitLayers))
         {
-            // Damage
+            // ── Enemy damage ───────────────────────────────────────────────
             if (hit.collider.TryGetComponent<EnemyHealth>(out var enemy))
                 enemy.TakeDamage(damage);
 
-            // Impact VFX – you can replace this with a proper decal / spark system
+            // ── Destructible environment ───────────────────────────────────
+            // Walk up the hierarchy: the collider may be on a chunk child whose
+            // root holds the IDestructible (DestructibleHealth) component.
+            var destructible = hit.collider.GetComponentInParent<IDestructible>()
+                            ?? hit.collider.GetComponent<IDestructible>();
+            if (destructible != null)
+            {
+                // Small impulse force for bullet-impact chunk push
+                const float bulletImpactForce = 80f;
+                destructible.ApplyDamage(damage, hit.point, hit.normal,
+                                         bulletImpactForce);
+
+                // Trigger surface VFX (dust chips, sparks) if DestructionVFX present
+                var vfx = hit.collider.GetComponentInParent<DestructionVFX>();
+                vfx?.PlayBulletImpact(hit.point, hit.normal);
+            }
+
+            // Impact debug ray
             Debug.DrawLine(ray.origin, hit.point, Color.red, 1f);
         }
     }

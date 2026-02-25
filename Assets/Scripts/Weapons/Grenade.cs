@@ -79,9 +79,14 @@ public class Grenade : MonoBehaviour
         // Damage & force
         Collider[] hits = Physics.OverlapSphere(transform.position, blastRadius,
                                                  damageableLayers);
+
+        // Track which IDestructible roots we've already notified this frame so
+        // multiple child colliders on the same wall don't stack damage.
+        var damagedDestructibles = new System.Collections.Generic.HashSet<IDestructible>();
+
         foreach (Collider col in hits)
         {
-            // Apply physics force
+            // Apply physics force to free rigidbodies (already-released debris etc.)
             if (col.TryGetComponent<Rigidbody>(out var rb))
             {
                 rb.AddExplosionForce(blastForce, transform.position, blastRadius,
@@ -102,6 +107,16 @@ public class Grenade : MonoBehaviour
                 float dist    = Vector3.Distance(transform.position, col.bounds.center);
                 float falloff = 1f - Mathf.Clamp01(dist / blastRadius);
                 player.TakeDamage(blastDamage * falloff);
+            }
+
+            // ── Destructible environment ───────────────────────────────────
+            var destructible = col.GetComponentInParent<IDestructible>()
+                            ?? col.GetComponent<IDestructible>();
+            if (destructible != null && damagedDestructibles.Add(destructible))
+            {
+                // ApplyExplosionDamage handles distance falloff internally
+                destructible.ApplyExplosionDamage(blastDamage, transform.position,
+                                                  blastRadius, blastForce);
             }
         }
 

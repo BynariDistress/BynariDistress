@@ -84,6 +84,16 @@ public class MeleeAttack : MonoBehaviour
                 hitSomething = true;
             }
 
+            // Damage destructible environment
+            var destructible = col.GetComponentInParent<IDestructible>()
+                            ?? col.GetComponent<IDestructible>();
+            if (destructible != null)
+            {
+                Vector3 hitDir = (col.bounds.center - origin).normalized;
+                destructible.ApplyDamage(meleeDamage * 0.5f, origin, -hitDir, 150f);
+                hitSomething = true;
+            }
+
             // Spawn hit VFX at closest point
             if (hitEffectPrefab != null)
             {
